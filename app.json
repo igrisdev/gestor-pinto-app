@@ -3,6 +3,7 @@
     "name": "gestor-pinto-app",
     "slug": "gestor-pinto-app",
     "version": "1.0.0",
+    "scheme": "gestor-pinto",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
