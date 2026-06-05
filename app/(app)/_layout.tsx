@@ -1,16 +1,9 @@
-import { useEffect } from "react";
 import { ActivityIndicator, View, StyleSheet } from "react-native";
-import { Slot, router } from "expo-router";
+import { Slot } from "expo-router";
 import { useAuth } from "../../src/context/AuthContext";
 
 export default function AppLayout() {
   const { user, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/");
-    }
-  }, [user, loading]);
 
   if (loading) {
     return (
