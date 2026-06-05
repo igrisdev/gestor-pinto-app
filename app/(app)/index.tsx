@@ -10,6 +10,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "expo-router";
+import { CommonActions } from "@react-navigation/native";
 
 import { getByClass } from "../../src/services/resources";
 import { useAuth } from "../../src/context/AuthContext";
@@ -17,6 +19,7 @@ import type { Resource } from "../../src/types";
 
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
+  const navigation = useNavigation();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -43,6 +46,9 @@ export default function DashboardScreen() {
   const handleLogout = async () => {
     try {
       await logout();
+      navigation.getParent()?.dispatch(CommonActions.reset({
+        routes: [{ name: "index" }]
+      }));
     } catch (error) {
       console.error('Logout error:', error);
     }
