@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,45 +9,59 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { useAuth } from '../src/context/AuthContext';
+} from "react-native";
+import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+
+import { login as loginService } from "../src/services/auth";
+import { useAuth } from "../src/context/AuthContext";
 
 export default function LoginScreen() {
-  const router = useRouter();
-  const { user, loading, error, signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const { user, login: loginUser, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!loading && user) {
-      router.replace('/app');
+    if (!authLoading) {
+      if (user) {
+        router.replace("/(app)");
+      } else {
+        setCheckingSession(false);
+      }
     }
-  }, [loading, user, router]);
+  }, [user, authLoading]);
 
-  useEffect(() => {
+  const validate = (): string | null => {
+    if (!email.includes("@")) return "Ingresa un email valido";
+    if (!password) return "La contrasena es requerida";
+    if (!/^\d+$/.test(password))
+      return "La contrasena debe ser numerica";
+    return null;
+  };
+
+  const handleLogin = async () => {
+    const error = validate();
     if (error) {
-      Alert.alert('Error', error);
-    }
-  }, [error]);
-
-  const handleSubmit = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Ingresa correo y contraseña');
+      Alert.alert("Error", error);
       return;
     }
 
-    setSubmitting(true);
-    const success = await signIn(email, password);
-    setSubmitting(false);
+    setLoading(true);
+    const result = await loginService(email.trim(), password);
+    setLoading(false);
 
-    if (success) {
-      router.replace('/app');
+    if (result.success) {
+      await loginUser(result.user);
+      router.replace("/(app)");
+    } else {
+      Alert.alert("Error", result.error);
     }
   };
 
-  if (loading) {
+  if (checkingSession) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#0F172A" />
@@ -56,36 +70,57 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.select({ ios: 'padding', android: undefined })}>
-      <Stack.Screen options={{ title: 'Iniciar sesión' }} />
-      <View style={styles.card}>
-        <Text style={styles.title}>Gestor Pinto</Text>
-        <Text style={styles.subtitle}>Ingresa tu correo y contraseña numérica para acceder.</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.content}>
+        <Text style={styles.title}>GestorPinto</Text>
+        <Text style={styles.subtitle}>Inicia sesion para continuar</Text>
 
         <TextInput
           style={styles.input}
+          placeholder="Correo electronico"
+          placeholderTextColor="#9CA3AF"
           value={email}
           onChangeText={setEmail}
-          placeholder="Correo"
+          autoCapitalize="none"
           keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholderTextColor="#9CA3AF"
-        />
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Contraseña"
-          secureTextEntry
-          keyboardType="number-pad"
-          autoCapitalize="none"
-          autoCorrect={false}
-          placeholderTextColor="#9CA3AF"
+          editable={!loading}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
-          <Text style={styles.buttonText}>{submitting ? 'Ingresando...' : 'Ingresar'}</Text>
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Contrasena"
+            placeholderTextColor="#9CA3AF"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={22}
+              color="#6B7280"
+            />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Iniciar Sesion</Text>
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -95,56 +130,79 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    justifyContent: 'center',
-    padding: 24,
+    backgroundColor: "#F9FAFB",
   },
   centered: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F9FAFB",
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 5,
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#0F172A',
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#0F172A",
+    textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
-    color: '#475569',
-    marginBottom: 24,
-    lineHeight: 20,
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 32,
   },
   input: {
-    height: 52,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: "#D1D5DB",
     borderRadius: 12,
+    paddingVertical: 12,
     paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#111",
     marginBottom: 16,
-    color: '#0F172A',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#fff",
+  },
+  passwordContainer: {
+    position: "relative",
+    marginBottom: 16,
+  },
+  passwordInput: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingRight: 48,
+    fontSize: 16,
+    color: "#111",
+    backgroundColor: "#fff",
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
   button: {
-    backgroundColor: '#0F172A',
+    backgroundColor: "#0F172A",
     borderRadius: 12,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "600",
   },
 });
